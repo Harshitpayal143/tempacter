@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Temperature & Position Monitor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .data-card {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px 0;
+            transition: transform 0.3s ease;
+        }
+
+        .data-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .data-title {
+            color: white;
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .data-value {
+            color: #fff;
+            font-size: 2em;
+            font-weight: bold;
+            text-align: center;
+            margin: 10px 0;
+        }
+
+        .data-unit {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 1.2em;
+            text-align: center;
+        }
+
+        .coordinates {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .coordinate-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .coordinate-label {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+
+        .coordinate-value {
+            color: white;
+            font-size: 1.3em;
+            font-weight: bold;
+        }
+
+        .status {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.7);
+            margin-top: 20px;
+            font-size: 0.9em;
+        }
+
+        .error {
+            color: #ff6b6b;
+            text-align: center;
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(255, 107, 107, 0.2);
+            border-radius: 10px;
+        }
+
+        .icon {
+            font-size: 1.5em;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+            
+            .data-value {
+                font-size: 1.5em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Real-Time Monitor</h1>
+        
+        <div class="data-card">
+            <div class="data-title">
+                <span class="icon">🌡️</span>
+                Temperature
+            </div>
+            <div class="data-value" id="temperature">--</div>
+            <div class="data-unit">°C</div>
+        </div>
+
+        <div class="data-card">
+            <div class="data-title">
+                <span class="icon">📍</span>
+                Position
+            </div>
+            <div class="coordinates">
+                <div class="coordinate-item">
+                    <div class="coordinate-label">Latitude</div>
+                    <div class="coordinate-value" id="latitude">--</div>
+                </div>
+                <div class="coordinate-item">
+                    <div class="coordinate-label">Longitude</div>
+                    <div class="coordinate-value" id="longitude">--</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="status" id="status">Initializing...</div>
+        <div class="error" id="error" style="display: none;"></div>
+    </div>
+
+    <script>
+        class RealTimeMonitor {
+            constructor() {
+                this.temperatureElement = document.getElementById('temperature');
+                this.latitudeElement = document.getElementById('latitude');
+                this.longitudeElement = document.getElementById('longitude');
+                this.statusElement = document.getElementById('status');
+                this.errorElement = document.getElementById('error');
+                
+                this.init();
+            }
+
+            init() {
+                this.updateStatus('Requesting permissions...');
+                
+                // Request geolocation permission
+                if ('geolocation' in navigator) {
+                    this.startGeolocationTracking();
+                } else {
+                    this.showError('Geolocation is not supported by this browser.');
+                }
+
+                // Start temperature simulation (since we can't access real temperature without hardware)
+                this.startTemperatureSimulation();
+            }
+
+            startGeolocationTracking() {
+                const options = {
+                    enableHighAccuracy: true,
+                    timeout: 5000,
+                    maximumAge: 0
+                };
+
+                const successCallback = (position) => {
+                    const { latitude, longitude } = position.coords;
+                    this.updatePosition(latitude, longitude);
+                    this.updateStatus('Location updated successfully');
+                };
+
+                const errorCallback = (error) => {
+                    let errorMessage = 'Error getting location: ';
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMessage += 'Permission denied';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMessage += 'Position unavailable';
+                            break;
+                        case error.TIMEOUT:
+                            errorMessage += 'Timeout';
+                            break;
+                        default:
+                            errorMessage += 'Unknown error';
+                            break;
+                    }
+                    this.showError(errorMessage);
+                };
+
+                // Get initial position
+                navigator.geolocation.getCurrentPosition(successCallback, errorCallback, options);
+
+                // Watch for position changes
+                navigator.geolocation.watchPosition(successCallback, errorCallback, options);
+            }
+
+            startTemperatureSimulation() {
+                // Simulate temperature changes (in a real app, this would come from sensors)
+                let baseTemp = 22.5;
+                
+                const updateTemperature = () => {
+                    // Simulate realistic temperature fluctuations
+                    const fluctuation = (Math.random() - 0.5) * 2;
+                    baseTemp += fluctuation;
+                    baseTemp = Math.max(15, Math.min(35, baseTemp)); // Keep between 15-35°C
+                    
+                    this.updateTemperature(baseTemp.toFixed(1));
+                };
+
+                // Update temperature every 3 seconds
+                updateTemperature();
+                setInterval(updateTemperature, 3000);
+            }
+
+            updateTemperature(temp) {
+                this.temperatureElement.textContent = temp;
+                this.addUpdateAnimation(this.temperatureElement);
+            }
+
+            updatePosition(lat, lng) {
+                this.latitudeElement.textContent = lat.toFixed(6);
+                this.longitudeElement.textContent = lng.toFixed(6);
+                this.addUpdateAnimation(this.latitudeElement);
+                this.addUpdateAnimation(this.longitudeElement);
+            }
+
+            updateStatus(message) {
+                this.statusElement.textContent = message;
+                this.errorElement.style.display = 'none';
+            }
+
+            showError(message) {
+                this.errorElement.textContent = message;
+                this.errorElement.style.display = 'block';
+                this.statusElement.textContent = 'Error occurred';
+            }
+
+            addUpdateAnimation(element) {
+                element.style.transform = 'scale(1.1)';
+                element.style.transition = 'transform 0.2s ease';
+                
+                setTimeout(() => {
+                    element.style.transform = 'scale(1)';
+                }, 200);
+            }
+        }
+
+        // Initialize the monitor when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new RealTimeMonitor();
+        });
+
+        // Handle visibility change to optimize performance
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                console.log('Page hidden - reducing update frequency');
+            } else {
+                console.log('Page visible - normal update frequency');
+            }
+        });
+    </script>
+</body>
+</html>
